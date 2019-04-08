@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
-	
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 )
 
-
-func main()  {
+func main() {
 	// 直接使用 accesskey 和 secretkey
 	//creds := credentials.NewStaticCredentialsFromCreds(credentials.Value{
 	//	AccessKeyID:     *aws.String("youraccesskey"),
@@ -20,14 +21,23 @@ func main()  {
 	//	Region: aws.String("us-east-1"),
 	//	Credentials: creds,
 	//})
-	
+
 	// 使用 Instance Role,不需要在服务器上配置 aws profile 和相关认证的环境变量
+	//sess, err := session.NewSession(&aws.Config{
+	//	Region: aws.String("us-east-1")},
+	//)
+
+	// 使用 Instance Role,并强制过期,通过 Get 得到新的 credential
+	creds := credentials.NewCredentials(&ec2rolecreds.EC2RoleProvider{})
+	creds.Expire()
+	_, err := creds.Get()
 	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String("us-east-1")},
-	)
+		Region:      aws.String("us-east-1"),
+		Credentials: creds,
+	})
 	svc := secretsmanager.New(sess)
 	input := &secretsmanager.ListSecretsInput{}
-	
+
 	result, err := svc.ListSecrets(input)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
@@ -48,6 +58,6 @@ func main()  {
 		}
 		return
 	}
-	
+
 	fmt.Println(result)
 }
